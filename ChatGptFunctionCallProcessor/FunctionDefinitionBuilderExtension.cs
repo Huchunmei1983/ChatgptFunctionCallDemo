@@ -37,7 +37,7 @@ namespace ChatGptFunctionCallProcessor
                                 var propval = new FunctionParameterPropertyValue()
                                 {
                                     Description = prop.GetCustomAttribute<DescriptionAttribute>()?.Description,
-                                    Type = prop.GetCustomAttribute<JsonConverterAttribute>()?.ConverterType?.Name ?? "string",
+                                    Type = GetJsonType(prop),
                                     Enum = new List<string>()
                                 };
                                 if (prop.PropertyType.IsEnum)
@@ -57,6 +57,41 @@ namespace ChatGptFunctionCallProcessor
         {
             var result = await LocalProxyGenerator.Excute(functionName, pairs);
             return new ChatMessage("function", JsonSerializer.Serialize(result), functionName);
+        }
+        static string GetJsonType(PropertyInfo propInfo)
+        {
+            Type propertyType = propInfo.PropertyType;
+
+            if (propertyType == typeof(bool))
+            {
+                return "boolean";
+            }
+            else if (propertyType == typeof(char) || propertyType == typeof(string))
+            {
+                return "string";
+            }
+            else if (IsNumericType(propertyType))
+            {
+                return "number";
+            }
+            else if (propertyType == typeof(DateTime) || propertyType == typeof(DateOnly) || propertyType == typeof(TimeOnly) || propertyType == typeof(DateTimeOffset) || propertyType == typeof(TimeSpan))
+            {
+                return "string";
+            }
+            else if (propertyType == typeof(Guid))
+            {
+                return "string";
+            }
+            else
+            {
+                return "object";
+            }
+        }
+        static bool IsNumericType(Type type)
+        {
+            return type == typeof(byte) || type == typeof(sbyte) || type == typeof(short) || type == typeof(ushort) ||
+                   type == typeof(int) || type == typeof(uint) || type == typeof(long) || type == typeof(ulong) ||
+                   type == typeof(float) || type == typeof(double) || type == typeof(decimal);
         }
     }
 }
