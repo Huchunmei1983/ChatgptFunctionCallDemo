@@ -61,8 +61,15 @@ namespace ChatGptFunctionCallProcessor
         static string GetJsonType(PropertyInfo propInfo)
         {
             Type propertyType = propInfo.PropertyType;
-
-            if (propertyType == typeof(bool))
+            if (propertyType.IsEnum)
+            {
+                return "string";
+            }
+            else if (IsArrayType(propertyType))
+            {
+                return "array";
+            }
+            else if(propertyType == typeof(bool))
             {
                 return "boolean";
             }
@@ -86,6 +93,10 @@ namespace ChatGptFunctionCallProcessor
             {
                 return "object";
             }
+        }
+        static bool IsArrayType(Type type)
+        {
+            return type.IsArray || (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>)) || type.GetInterfaces().Contains(typeof(IEnumerable<>));
         }
         static bool IsNumericType(Type type)
         {
