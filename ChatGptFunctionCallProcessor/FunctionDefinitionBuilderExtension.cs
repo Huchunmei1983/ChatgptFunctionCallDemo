@@ -37,7 +37,7 @@ namespace ChatGptFunctionCallProcessor
                                 var propval = new FunctionParameterPropertyValue()
                                 {
                                     Description = prop.GetCustomAttribute<DescriptionAttribute>()?.Description,
-                                    Type = GetJsonType(prop),
+                                    Type = GetJsonType(prop.PropertyType),
                                     Enum = new List<string>()
                                 };
                                 if (prop.PropertyType.IsEnum)
@@ -58,51 +58,59 @@ namespace ChatGptFunctionCallProcessor
             var result = await LocalProxyGenerator.Excute(functionName, pairs);
             return new ChatMessage("function", JsonSerializer.Serialize(result), functionName);
         }
-        static string GetJsonType(PropertyInfo propInfo)
+        static string GetJsonType(Type type)
         {
-            Type propertyType = propInfo.PropertyType;
-            if (propertyType.IsEnum)
+            if (type == typeof(string))
             {
                 return "string";
             }
-            else if (IsArrayType(propertyType))
-            {
-                return "array";
-            }
-            else if(propertyType == typeof(bool))
-            {
-                return "boolean";
-            }
-            else if (propertyType == typeof(char) || propertyType == typeof(string))
-            {
-                return "string";
-            }
-            else if (IsNumericType(propertyType))
+
+            if (type == typeof(int) || type == typeof(float) || type == typeof(decimal) || type == typeof(double) ||
+                type == typeof(short) || type == typeof(long) || type == typeof(uint) || type == typeof(ulong) ||
+                type == typeof(ushort) || type == typeof(byte) || type == typeof(sbyte))
             {
                 return "number";
             }
-            else if (propertyType == typeof(DateTime) || propertyType == typeof(DateOnly) || propertyType == typeof(TimeOnly) || propertyType == typeof(DateTimeOffset) || propertyType == typeof(TimeSpan))
+
+            if (type == typeof(bool))
+            {
+                return "boolean";
+            }
+
+            if (type == typeof(DateTime) || type == typeof(Guid))
             {
                 return "string";
             }
-            else if (propertyType == typeof(Guid))
-            {
-                return "string";
-            }
-            else
+
+            if (type == typeof(object))
             {
                 return "object";
             }
-        }
-        static bool IsArrayType(Type type)
-        {
-            return type.IsArray || (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>)) || type.GetInterfaces().Contains(typeof(IEnumerable<>));
-        }
-        static bool IsNumericType(Type type)
-        {
-            return type == typeof(byte) || type == typeof(sbyte) || type == typeof(short) || type == typeof(ushort) ||
-                   type == typeof(int) || type == typeof(uint) || type == typeof(long) || type == typeof(ulong) ||
-                   type == typeof(float) || type == typeof(double) || type == typeof(decimal);
+
+            if (type.IsGenericType)
+            {
+                var genericType = type.GetGenericTypeDefinition();
+
+                if (genericType == typeof(Nullable<>))
+                {
+                    return GetJsonType(type.GetGenericArguments()[0]);
+                }
+
+                if (genericType == typeof(List<>) || genericType == typeof(IEnumerable<>))
+                {
+                    return "array";
+                }
+
+                if (genericType == typeof(Dictionary<,>) && type.GetGenericArguments()[0] == typeof(string))
+                {
+                    return "object";
+                }
+            }
+            if (typeof(IEnumerable<>).IsAssignableFrom(type) || type.IsArray)
+            {
+                return "array";
+            }
+            return "object";
         }
     }
 }
